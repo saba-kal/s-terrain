@@ -93,13 +93,15 @@ namespace STerrain.Meshers
             var p2k = 1 << lodIndex; //2 ^ lod
             var p2mk = 1f / p2k; //2 ^ (-lod)
 
-            const float transitionCellScale = 0.25f;
+            const float transitionCellScale = 0.5f;
             var wk = transitionCellScale * p2k;
 
             for (var i = 0; i < 3; i++)
             {
-                var p = pos[i];
-                var s = size - 1;
+                //IDK why I need to subtract 1. If I don't, transition cells on different sides
+                //of the terrain chunk have different widths.
+                var p = pos[i] - 1;
+                var s = size;
 
                 if (p < p2k)
                 {
@@ -123,17 +125,10 @@ namespace STerrain.Meshers
         /// </summary>
         private static Vector3 ProjectBorderOffset(Vector3 delta, Vector3 normal)
         {
-            var defaultProjection = new Vector3(
+            return new Vector3(
                 (1 - normal.x * normal.x) * delta.x - normal.y * normal.x * delta.y - normal.z * normal.x * delta.z,
                 -normal.x * normal.y * delta.x + (1 - normal.y * normal.y) * delta.y - normal.z * normal.y * delta.z,
                 -normal.x * normal.z * delta.x - normal.y * normal.z * delta.y + (1 - normal.z * normal.z) * delta.z);
-
-            var newProjection = new Vector3();
-            newProjection.x = defaultProjection.z;
-            newProjection.y = defaultProjection.y;
-            newProjection.z = defaultProjection.x;
-
-            return defaultProjection;
         }
     }
 }

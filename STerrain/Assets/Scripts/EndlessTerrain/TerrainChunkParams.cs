@@ -18,8 +18,13 @@ namespace STerrain.EndlessTerrain
         public Material Material { get; set; }
 
         /// <summary>
-        /// The transform scale of the terrain chunk game object.
+        /// Transform position of the terrain chunk.
         /// </summary>
-        public int WorldScale { get; set; }
+        public Vector3 Position { get; set; }
+
+        /// <summary>
+        /// Transform scale of the terrain chunk.
+        /// </summary>
+        public int Scale { get; set; }
     }
 }

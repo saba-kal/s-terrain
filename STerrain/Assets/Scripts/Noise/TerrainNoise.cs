@@ -27,7 +27,7 @@ namespace STerrain.Noise
             fastNoise.SetFractalOctaves(noiseSettings.Octaves);
             fastNoise.SetFractalLacunarity(noiseSettings.Lacunarity);
             fastNoise.SetFractalGain(noiseSettings.Persistence);
-            fastNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
+            fastNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
 
             for (var x = 0; x < mapWidth; x++)
             {
@@ -42,10 +42,10 @@ namespace STerrain.Noise
 
                         var noiseValue = fastNoise.GetNoise(
                             noiseLocation.x,
-                            noiseLocation.y,
+                            noiseLocation.y * 2,
                             noiseLocation.z);
 
-                        voxelData[x, y, z] = noiseValue;
+                        voxelData[x, y, z] = noiseValue + (noiseLocation.y / 50f);
                     }
                 }
             }

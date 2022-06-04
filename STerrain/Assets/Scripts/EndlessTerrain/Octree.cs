@@ -31,7 +31,7 @@ namespace STerrain.EndlessTerrain
         /// <param name="position">The insert position.</param>
         public void Insert(Vector3 position)
         {
-            var dist = Vector3.Distance(_bounds.center, position) * 1f;
+            var dist = Vector3.Distance(_bounds.center, position) * 0.5f;
             if (dist < _bounds.size.x && _bounds.size.x > _minNodeSize)
             {
                 CreateChildren(position);

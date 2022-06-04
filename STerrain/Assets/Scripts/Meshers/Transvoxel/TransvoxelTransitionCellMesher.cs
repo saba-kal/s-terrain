@@ -140,8 +140,8 @@ namespace STerrain.Meshers
                 }
 
                 if (isFullResSide &&
-                    (TransvoxelCommon.PositionShouldUseBePushedBack(p0i - Vector3Int.one, _size, _chunkFacesWithLowerLod) ||
-                    TransvoxelCommon.PositionShouldUseBePushedBack(p1i - Vector3Int.one, _size, _chunkFacesWithLowerLod)))
+                    (TransvoxelCommon.PositionShouldUseBePushedBack(p0i - _min, _size, _chunkFacesWithLowerLod) ||
+                    TransvoxelCommon.PositionShouldUseBePushedBack(p1i - _min, _size, _chunkFacesWithLowerLod)))
                 {
                     vertex = TransvoxelCommon.GetSecondaryVertexPosition(vertex, normal, _size);
                 }

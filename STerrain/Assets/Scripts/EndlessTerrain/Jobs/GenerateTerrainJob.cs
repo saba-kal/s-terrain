@@ -20,7 +20,7 @@ namespace STerrain.EndlessTerrain
             }
             else
             {
-                voxelData = VoxelData.ExtractFromNativeArray(JobData.ResultVoxelsArray, index, EndlessTerrain.NOISE_SIZE);
+                voxelData = VoxelData.ExtractFromNativeArray(JobData.ResultVoxelsArray, index, JobData.NoiseSettings.Size);
             }
 
             GenerateMesh(index, voxelData);
@@ -30,13 +30,13 @@ namespace STerrain.EndlessTerrain
         {
             var bounds = JobData.BoundsArray[index];
             var position = bounds.center - (bounds.size / 2f);
-            var scale = Mathf.FloorToInt(bounds.size.x / EndlessTerrain.CHUNK_SIZE);
-            var sampleCenter = position / scale;
+            var scale = Mathf.FloorToInt(bounds.size.x / JobData.ChunkSize);
+            var sampleCenter = position / scale - Vector3.one;
 
             var voxelData = TerrainNoise.Generate(
-                EndlessTerrain.NOISE_SIZE,
-                EndlessTerrain.NOISE_SIZE,
-                EndlessTerrain.NOISE_SIZE,
+                JobData.NoiseSettings.Size,
+                JobData.NoiseSettings.Size,
+                JobData.NoiseSettings.Size,
                 scale,
                 sampleCenter,
                 JobData.NoiseSettings);
@@ -48,13 +48,13 @@ namespace STerrain.EndlessTerrain
 
         private void GenerateMesh(int index, VoxelData voxelData)
         {
-            const int flattenedArraySize = EndlessTerrain.NOISE_SIZE * EndlessTerrain.NOISE_SIZE * EndlessTerrain.NOISE_SIZE;
+            var flattenedArraySize = JobData.NoiseSettings.Size * JobData.NoiseSettings.Size * JobData.NoiseSettings.Size;
             var voxelDataSlice = new NativeSlice<float>(JobData.ResultVoxelsArray, flattenedArraySize * index, flattenedArraySize);
             voxelDataSlice.CopyFrom(voxelData.ToArray());
 
             var terrainMeshData = new TransvoxelMesher(
                 voxelData,
-                EndlessTerrain.CHUNK_SIZE,
+                JobData.ChunkSize,
                 JobData.LodTransitionConfigArray[index],
                 Vector3Int.one).ExtractSurface();
 

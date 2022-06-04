@@ -12,31 +12,20 @@ namespace STerrain.EndlessTerrain
         public Bounds Bounds { get; private set; }
         public VoxelData VoxelData { get; set; }
         public CubeFaceDirection CurrentLodTransitionConfig { get; set; }
+        public bool NeedsToBuild => VoxelData == null;
+        public bool NeedsMeshUpdate { get; set; }
 
-        private readonly Octree _octree;
         private readonly Dictionary<CubeFaceDirection, Mesh> _availableLodTransitionConfigs;
-
         private Mesh _mesh;
         private GameObject _meshObject;
         private MeshRenderer _meshRenderer;
         private MeshFilter _meshFilter;
 
-        public TerrainChunk(
-            Bounds bounds, CubeFaceDirection neighborChunksWithLowerLod)
+        public TerrainChunk(Bounds bounds, CubeFaceDirection neighborChunksWithLowerLod)
         {
             Bounds = bounds;
             CurrentLodTransitionConfig = neighborChunksWithLowerLod;
             _availableLodTransitionConfigs = new Dictionary<CubeFaceDirection, Mesh>();
-        }
-
-        /// <summary>
-        /// Sets the mesh for this terrain chunk.
-        /// </summary>
-        /// <param name="mesh">The mesh to set.</param>
-        public void SetMesh(Mesh mesh)
-        {
-            _mesh = mesh;
-            _availableLodTransitionConfigs[CurrentLodTransitionConfig] = mesh;
         }
 
         /// <summary>
@@ -53,20 +42,37 @@ namespace STerrain.EndlessTerrain
                 throw new System.Exception($"Terrain chunk {Bounds} is missing a mesh.");
             }
 
-            var position = Bounds.center - (Bounds.size / 2);
-            var scale = Mathf.FloorToInt(Bounds.size.x / EndlessTerrain.CHUNK_SIZE);
-
             _meshObject = new GameObject("Terrain chunk");
-            _meshObject.transform.position = position - Vector3.one * scale;
+            _meshObject.transform.position = parameters.Position;
             _meshObject.transform.parent = parameters.Parent;
-            _meshObject.transform.localScale = Vector3.one * scale;
+            _meshObject.transform.localScale = Vector3.one * parameters.Scale;
 
             _meshRenderer = _meshObject.AddComponent<MeshRenderer>();
             _meshRenderer.material = parameters.Material;
 
             _meshFilter = _meshObject.AddComponent<MeshFilter>();
-            _meshFilter.mesh = _mesh;
-            _meshFilter.mesh.RecalculateBounds();
+            _meshFilter.sharedMesh = _mesh;
+            _meshFilter.sharedMesh.RecalculateBounds();
+        }
+
+        /// <summary>
+        /// Sets the current active mesh to the chunk mesh filter.
+        /// </summary>
+        public void SetMesh(Mesh mesh, CubeFaceDirection neighborChunksWithLowerLod)
+        {
+            _mesh = mesh;
+            CurrentLodTransitionConfig = neighborChunksWithLowerLod;
+            _availableLodTransitionConfigs[neighborChunksWithLowerLod] = mesh;
+            NeedsMeshUpdate = false;
+        }
+
+        /// <summary>
+        /// Rebuilds the terrain chunk mesh.
+        /// </summary>
+        public void ReBuild()
+        {
+            _meshFilter.sharedMesh = _mesh;
+            _meshFilter.sharedMesh.RecalculateBounds();
         }
 
         /// <summary>
@@ -79,71 +85,23 @@ namespace STerrain.EndlessTerrain
         }
 
         /// <summary>
-        /// Gets the current LOD transition configuration for the generated mesh.
-        /// </summary>
-        public CubeFaceDirection GetLodTransitionConfiguration()
-        {
-            return CurrentLodTransitionConfig;
-        }
-
-        /// <summary>
         /// Attempts to re-use a mesh with the given LOD transition configuration.
         /// </summary>
         /// <param name="neighborChunksWithLowerLod">The LOD transition configuration to check.</param>
         /// <returns>True if re-use was successful. False if mesh does not exist for given configuration.</returns>
-        public bool TryReuseMeshWithLodTransitionConfiguration(CubeFaceDirection neighborChunksWithLowerLod)
+        public void TryReuseMeshWithLodTransitionConfiguration(CubeFaceDirection neighborChunksWithLowerLod)
         {
+            CurrentLodTransitionConfig = neighborChunksWithLowerLod;
             if (_availableLodTransitionConfigs.TryGetValue(neighborChunksWithLowerLod, out var mesh))
             {
-                _meshFilter.mesh = mesh;
-                return true;
+                _meshFilter.sharedMesh = mesh;
+                NeedsMeshUpdate = false;
             }
-
-            return true;
-        }
-
-        private CubeFaceDirection GetNeighborChunksWithLowerLod()
-        {
-            var neighborChunksWithLowerLod = CubeFaceDirection.None;
-            var translationAmount = Bounds.size.x;
-
-            var rightBound = _octree.GetBound(Bounds.center + new Vector3(translationAmount, 0, 0));
-            if (rightBound.HasValue && rightBound.Value.size.x > Bounds.size.x)
+            else
             {
-                neighborChunksWithLowerLod |= CubeFaceDirection.PositiveX;
+                NeedsMeshUpdate = true;
             }
 
-            var leftBound = _octree.GetBound(Bounds.center + new Vector3(-translationAmount, 0, 0));
-            if (leftBound.HasValue && leftBound.Value.size.x > Bounds.size.x)
-            {
-                neighborChunksWithLowerLod |= CubeFaceDirection.NegativeX;
-            }
-
-            var topBound = _octree.GetBound(Bounds.center + new Vector3(0, translationAmount, 0));
-            if (topBound.HasValue && topBound.Value.size.x > Bounds.size.x)
-            {
-                neighborChunksWithLowerLod |= CubeFaceDirection.PositiveY;
-            }
-
-            var bottomBound = _octree.GetBound(Bounds.center + new Vector3(0, -translationAmount, 0));
-            if (bottomBound.HasValue && bottomBound.Value.size.x > Bounds.size.x)
-            {
-                neighborChunksWithLowerLod |= CubeFaceDirection.NegativeY;
-            }
-
-            var forwardBound = _octree.GetBound(Bounds.center + new Vector3(0, 0, translationAmount));
-            if (forwardBound.HasValue && forwardBound.Value.size.x > Bounds.size.x)
-            {
-                neighborChunksWithLowerLod |= CubeFaceDirection.PositiveZ;
-            }
-
-            var backwardBound = _octree.GetBound(Bounds.center + new Vector3(0, 0, -translationAmount));
-            if (backwardBound.HasValue && backwardBound.Value.size.x > Bounds.size.x)
-            {
-                neighborChunksWithLowerLod |= CubeFaceDirection.NegativeZ;
-            }
-
-            return neighborChunksWithLowerLod;
         }
     }
 }

@@ -12,7 +12,9 @@ namespace STerrain.EndlessTerrain
         [ReadOnly] public NativeArray<Bounds> BoundsArray;
         [ReadOnly] public NativeArray<CubeFaceDirection> LodTransitionConfigArray;
         [ReadOnly] public NativeArray<bool> NeedsVoxelData;
+        [ReadOnly] public int ChunkSize;
         [ReadOnly] public NoiseSettings NoiseSettings;
+
         [NativeDisableParallelForRestriction] public NativeArray<float> ResultVoxelsArray;
         public MeshDataArray ResultMeshDataArray;
 

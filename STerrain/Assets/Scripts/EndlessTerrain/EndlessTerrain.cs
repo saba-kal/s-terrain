@@ -1,4 +1,6 @@
 ﻿using STerrain.Common;
+using STerrain.Settings;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,26 +12,10 @@ namespace STerrain.EndlessTerrain
     [RequireComponent(typeof(EndlessTerrainJobScheduler))]
     public class EndlessTerrain : MonoBehaviour
     {
-        public const int NOISE_SIZE = 19;
-        public const int CHUNK_SIZE = 16;
-
-        [Header("Noise Settings")]
-        [SerializeField] private float _scale;
-        [SerializeField] private int _octaves;
-        [Range(0, 1)]
-        [SerializeField] private float _persistence;
-        [SerializeField] private float _lacunarity;
-        [SerializeField] private int _seed;
-        [SerializeField] private Vector3 _offset;
-
-        [Header("Player Settings")]
         [SerializeField] private Transform _viewer;
         [SerializeField] private float _viewerMoveThresholdForChunkUpdate = 25f;
         [SerializeField] private int _renderDistanceMultiplier = 16;
-
-        [Header("Terrain Settings")]
-        [SerializeField] private Material _terrainMaterial;
-        [SerializeField] private int _worldScale;
+        [SerializeField] private TerrainSettings _terrainSettings;
 
         private EndlessTerrainJobScheduler _scheduler;
         private Transform _transform;
@@ -37,6 +23,9 @@ namespace STerrain.EndlessTerrain
         private Vector3 _viewerPositionOld;
         private Octree _octree;
         private Dictionary<Bounds, TerrainChunk> _terrainChunkDictionary = new Dictionary<Bounds, TerrainChunk>();
+        private HashSet<Bounds> _visibleChunksBounds = new HashSet<Bounds>();
+        private List<TerrainChunk> _chunksThatNeedUpdate = new List<TerrainChunk>();
+        private bool _terrainGenerationWasScheduled = false;
 
         private void Awake()
         {
@@ -52,7 +41,8 @@ namespace STerrain.EndlessTerrain
 
         private void Update()
         {
-            if ((_viewerPositionOld - _viewer.position).sqrMagnitude > _sqrViewerMoveThresholdForChunkUpdate)
+            if ((_viewerPositionOld - _viewer.position).sqrMagnitude > _sqrViewerMoveThresholdForChunkUpdate &&
+                !_terrainGenerationWasScheduled)
             {
                 _viewerPositionOld = _viewer.position;
                 UpdateVisibleChunks();
@@ -61,90 +51,102 @@ namespace STerrain.EndlessTerrain
 
         private void UpdateVisibleChunks()
         {
+            var chunkSize = _terrainSettings.ChunkSize;
             var currentChunkPosition = new Vector3(
-                Mathf.RoundToInt(_viewer.position.x / CHUNK_SIZE) * CHUNK_SIZE,
-                Mathf.RoundToInt(_viewer.position.y / CHUNK_SIZE) * CHUNK_SIZE,
-                Mathf.RoundToInt(_viewer.position.z / CHUNK_SIZE) * CHUNK_SIZE);
+                Mathf.RoundToInt(_viewer.position.x / chunkSize) * chunkSize,
+                Mathf.RoundToInt(_viewer.position.y / chunkSize) * chunkSize,
+                Mathf.RoundToInt(_viewer.position.z / chunkSize) * chunkSize);
+            var terrainBounds = new Bounds(currentChunkPosition, Vector3.one * chunkSize * _renderDistanceMultiplier);
 
-            _octree = new Octree(
-                new Bounds(currentChunkPosition, Vector3.one * CHUNK_SIZE * _renderDistanceMultiplier),
-                CHUNK_SIZE);
+            _octree = new Octree(terrainBounds, chunkSize);
             _octree.Insert(_viewer.position);
 
-            var visibleChunkBounds = new HashSet<Bounds>();
-            var chunksThatNeedUpdate = new List<TerrainChunk>();
+            GetChunksThatNeedToUpdate();
+            ScheduleChunkUpdates();
+            StartCoroutine(ProcessGeneratedChunks());
+        }
+
+        private void GetChunksThatNeedToUpdate()
+        {
+            _visibleChunksBounds = new HashSet<Bounds>();
+            _chunksThatNeedUpdate = new List<TerrainChunk>();
             foreach (var bound in _octree.GetAllLeafBounds())
             {
                 var lodTransitionConfiguration = GetNeighborChunksWithLowerLod(bound);
 
                 if (_terrainChunkDictionary.TryGetValue(bound, out var terrainChunk))
                 {
-                    //Terrain chunk was previously visited.
-                    if (terrainChunk.TryReuseMeshWithLodTransitionConfiguration(lodTransitionConfiguration))
+                    terrainChunk.TryReuseMeshWithLodTransitionConfiguration(lodTransitionConfiguration);
+                    if (terrainChunk.NeedsMeshUpdate)
                     {
-                        terrainChunk.SetVisible(true);
+                        _chunksThatNeedUpdate.Add(terrainChunk);
                     }
                     else
                     {
-                        terrainChunk.CurrentLodTransitionConfig = lodTransitionConfiguration;
-                        chunksThatNeedUpdate.Add(terrainChunk);
+                        terrainChunk.SetVisible(true);
                     }
                 }
                 else
                 {
                     var newChunk = new TerrainChunk(bound, lodTransitionConfiguration);
-                    chunksThatNeedUpdate.Add(newChunk);
+                    _chunksThatNeedUpdate.Add(newChunk);
                     _terrainChunkDictionary.Add(bound, newChunk);
                 }
 
-                visibleChunkBounds.Add(bound);
-            }
-
-            HideChunksThatAreNotVisible(visibleChunkBounds);
-            ScheduleChunkUpdates(chunksThatNeedUpdate);
-        }
-
-        private void HideChunksThatAreNotVisible(HashSet<Bounds> visibleChunkBounds)
-        {
-            foreach (var chunk in _terrainChunkDictionary.Values)
-            {
-                if (!visibleChunkBounds.Contains(chunk.Bounds))
-                {
-                    chunk.SetVisible(false);
-                }
+                _visibleChunksBounds.Add(bound);
             }
         }
 
-        private void ScheduleChunkUpdates(List<TerrainChunk> chunksThatNeedUpdate)
+        private void ScheduleChunkUpdates()
         {
-            var noiseSettings = new Noise.NoiseSettings
-            {
-                Scale = _scale,
-                Octaves = _octaves,
-                Persistence = _persistence,
-                Lacunarity = _lacunarity,
-                Seed = _seed,
-                Offset = _offset
-            };
+            _scheduler.ScheduleChunkGenerationJob(_chunksThatNeedUpdate, _terrainSettings);
+            _terrainGenerationWasScheduled = true;
+        }
 
-            _scheduler.ScheduleChunkGenerationJob(chunksThatNeedUpdate, noiseSettings);
-            foreach (var result in _scheduler.CompleteJob())
+        private IEnumerator ProcessGeneratedChunks()
+        {
+            yield return new WaitUntil(_scheduler.IsComplete);
+
+            HideChunksThatAreNotVisible();
+
+            var terrainGenerationResult = _scheduler.CompleteJob();
+            foreach (var result in terrainGenerationResult)
             {
                 var chunk = _terrainChunkDictionary[result.Bounds];
-                if (chunk.VoxelData != null)
+                if (chunk.NeedsToBuild)
                 {
-                    chunk.SetMesh(result.Mesh);
-                }
-                else
-                {
+                    var scale = Mathf.FloorToInt(chunk.Bounds.size.x / _terrainSettings.ChunkSize);
+                    var position = chunk.Bounds.center - (chunk.Bounds.size / 2) - Vector3.one * scale;
+
                     chunk.VoxelData = result.VoxelData;
-                    chunk.SetMesh(result.Mesh);
+                    chunk.SetMesh(result.Mesh, result.LodTransitionConfig);
                     chunk.BuildChunk(new TerrainChunkParams
                     {
                         Parent = _transform,
-                        Material = _terrainMaterial,
-                        WorldScale = _worldScale
+                        Material = _terrainSettings.TerrainMaterial,
+                        Position = position,
+                        Scale = scale
                     });
+                }
+                else if (chunk.NeedsMeshUpdate)
+                {
+                    chunk.SetMesh(result.Mesh, result.LodTransitionConfig);
+                    chunk.ReBuild();
+                    chunk.SetVisible(true);
+                }
+            }
+            _terrainGenerationWasScheduled = false;
+
+            yield return null;
+        }
+
+        private void HideChunksThatAreNotVisible()
+        {
+            foreach (var chunk in _terrainChunkDictionary.Values)
+            {
+                if (!_visibleChunksBounds.Contains(chunk.Bounds))
+                {
+                    chunk.SetVisible(false);
                 }
             }
         }

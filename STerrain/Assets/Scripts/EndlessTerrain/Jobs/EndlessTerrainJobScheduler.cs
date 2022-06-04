@@ -1,5 +1,6 @@
 ﻿using STerrain.Common;
 using STerrain.Noise;
+using STerrain.Settings;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Jobs;
@@ -18,20 +19,22 @@ namespace STerrain.EndlessTerrain
         private JobHandle _generateTerrainHandle;
         private GenerateTerrainJobData _jobData;
         private int _jobCount = 0;
+        private int _voxelDataSize;
 
-        public void ScheduleChunkGenerationJob(List<TerrainChunk> terrainChunks, NoiseSettings noiseSettings)
+        public void ScheduleChunkGenerationJob(List<TerrainChunk> terrainChunks, TerrainSettings terrainSettings)
         {
-
-            var voxelDataArraySize = EndlessTerrain.NOISE_SIZE * EndlessTerrain.NOISE_SIZE * EndlessTerrain.NOISE_SIZE;
+            _voxelDataSize = terrainSettings.NoiseSize;
+            var voxelDataArraySize = _voxelDataSize * _voxelDataSize * _voxelDataSize;
 
             _jobCount = terrainChunks.Count;
             _jobData = new GenerateTerrainJobData()
             {
-                BoundsArray = new NativeArray<Bounds>(_jobCount, Allocator.TempJob),
-                LodTransitionConfigArray = new NativeArray<CubeFaceDirection>(_jobCount, Allocator.TempJob),
-                NeedsVoxelData = new NativeArray<bool>(_jobCount, Allocator.TempJob),
-                NoiseSettings = noiseSettings,
-                ResultVoxelsArray = new NativeArray<float>(_jobCount * voxelDataArraySize, Allocator.TempJob),
+                BoundsArray = new NativeArray<Bounds>(_jobCount, Allocator.Persistent),
+                LodTransitionConfigArray = new NativeArray<CubeFaceDirection>(_jobCount, Allocator.Persistent),
+                NeedsVoxelData = new NativeArray<bool>(_jobCount, Allocator.Persistent),
+                ChunkSize = terrainSettings.ChunkSize,
+                NoiseSettings = NoiseSettings.FromTerrainSettings(terrainSettings),
+                ResultVoxelsArray = new NativeArray<float>(_jobCount * voxelDataArraySize, Allocator.Persistent),
                 ResultMeshDataArray = AllocateWritableMeshData(_jobCount)
             };
 
@@ -39,14 +42,14 @@ namespace STerrain.EndlessTerrain
             {
                 _jobData.BoundsArray[i] = terrainChunks[i].Bounds;
                 _jobData.LodTransitionConfigArray[i] = terrainChunks[i].CurrentLodTransitionConfig;
-                if (terrainChunks[i].VoxelData != null)
+                if (terrainChunks[i].NeedsToBuild)
                 {
-                    _jobData.NeedsVoxelData[i] = false;
-                    terrainChunks[i].VoxelData.AppendToNativeArray(_jobData.ResultVoxelsArray, i);
+                    _jobData.NeedsVoxelData[i] = true;
                 }
                 else
                 {
-                    _jobData.NeedsVoxelData[i] = true;
+                    _jobData.NeedsVoxelData[i] = false;
+                    terrainChunks[i].VoxelData.AppendToNativeArray(_jobData.ResultVoxelsArray, i);
                 }
             }
 
@@ -73,7 +76,7 @@ namespace STerrain.EndlessTerrain
                 {
                     Bounds = _jobData.BoundsArray[i],
                     LodTransitionConfig = _jobData.LodTransitionConfigArray[i],
-                    VoxelData = VoxelData.ExtractFromNativeArray(_jobData.ResultVoxelsArray, i, EndlessTerrain.NOISE_SIZE),
+                    VoxelData = VoxelData.ExtractFromNativeArray(_jobData.ResultVoxelsArray, i, _voxelDataSize),
                     Mesh = meshes[i],
                 });
             }
@@ -83,6 +86,11 @@ namespace STerrain.EndlessTerrain
             _jobData.Dispose();
 
             return result;
+        }
+
+        public bool IsComplete()
+        {
+            return _generateTerrainHandle.IsCompleted;
         }
     }
 }
