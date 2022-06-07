@@ -14,7 +14,8 @@ namespace STerrain.EndlessTerrain
     {
         [SerializeField] private Transform _viewer;
         [SerializeField] private float _viewerMoveThresholdForChunkUpdate = 25f;
-        [SerializeField] private int _renderDistanceMultiplier = 16;
+        [SerializeField] private int _renderDistanceMultiplier = 31;
+        [SerializeField] private int _octreeDivisionCount = 8;
         [SerializeField] private TerrainSettings _terrainSettings;
 
         private EndlessTerrainJobScheduler _scheduler;
@@ -58,8 +59,8 @@ namespace STerrain.EndlessTerrain
                 Mathf.RoundToInt(_viewer.position.z / chunkSize) * chunkSize);
             var terrainBounds = new Bounds(currentChunkPosition, Vector3.one * chunkSize * _renderDistanceMultiplier);
 
-            _octree = new Octree(terrainBounds, chunkSize);
-            _octree.Insert(_viewer.position);
+            _octree = new Octree(terrainBounds, _octreeDivisionCount);
+            _octree.Insert(currentChunkPosition);
 
             GetChunksThatNeedToUpdate();
             ScheduleChunkUpdates();

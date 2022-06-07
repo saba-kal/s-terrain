@@ -20,6 +20,7 @@ namespace STerrain.EndlessTerrain
         private GameObject _meshObject;
         private MeshRenderer _meshRenderer;
         private MeshFilter _meshFilter;
+        private MeshCollider _meshCollider;
 
         public TerrainChunk(Bounds bounds, CubeFaceDirection neighborChunksWithLowerLod)
         {
@@ -53,6 +54,12 @@ namespace STerrain.EndlessTerrain
             _meshFilter = _meshObject.AddComponent<MeshFilter>();
             _meshFilter.sharedMesh = _mesh;
             _meshFilter.sharedMesh.RecalculateBounds();
+
+            if (Bounds.size.z == 16)
+            {
+                _meshCollider = _meshObject.AddComponent<MeshCollider>();
+                _meshCollider.sharedMesh = _mesh;
+            }
         }
 
         /// <summary>

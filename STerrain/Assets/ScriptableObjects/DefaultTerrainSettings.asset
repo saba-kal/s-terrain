@@ -15,8 +15,8 @@ MonoBehaviour:
   _terrainMaterial: {fileID: 2100000, guid: 71b697825f63ac846bc9dcaec64a613b, type: 2}
   _worldScale: 1
   _chunkSize: 16
-  _noiseScale: 1
-  _octaves: 3
+  _noiseScale: 0.5
+  _octaves: 5
   _persistence: 0.109
   _lacunarity: 5
   _seed: 0

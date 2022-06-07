@@ -10,7 +10,7 @@ namespace STerrain.EndlessTerrain
     public class Octree
     {
         private readonly Bounds _bounds;
-        private readonly float _minNodeSize;
+        private readonly int _divisionCount;
 
         private Octree[] _children;
 
@@ -18,11 +18,11 @@ namespace STerrain.EndlessTerrain
         /// Constructor.
         /// </summary>
         /// <param name="bounds">Represents the cube bounds of this octree node.</param>
-        /// <param name="minNodeSize">Minimum node size.</param>
-        public Octree(Bounds bounds, float minNodeSize)
+        /// <param name="divisionCount">Number of times to divide the octree.</param>
+        public Octree(Bounds bounds, int divisionCount)
         {
             _bounds = bounds;
-            _minNodeSize = minNodeSize;
+            _divisionCount = divisionCount;
         }
 
         /// <summary>
@@ -31,11 +31,12 @@ namespace STerrain.EndlessTerrain
         /// <param name="position">The insert position.</param>
         public void Insert(Vector3 position)
         {
-            var dist = Vector3.Distance(_bounds.center, position) * 0.5f;
-            if (dist < _bounds.size.x && _bounds.size.x > _minNodeSize)
+            if (_divisionCount == 0)
             {
-                CreateChildren(position);
+                return;
             }
+
+            CreateChildren(position);
         }
 
         /// <summary>
@@ -94,7 +95,46 @@ namespace STerrain.EndlessTerrain
             _children = new Octree[8];
             for (var i = 0; i < 8; i++)
             {
-                _children[i] = new Octree(GetChildBoundsFromIndex(i), _minNodeSize);
+                var childDivisionCount = _divisionCount - 1;
+                var childBounds = GetChildBoundsFromIndex(i);
+                if (!childBounds.Contains(position))
+                {
+                    childDivisionCount = 0;
+                }
+
+                _children[i] = new Octree(GetChildBoundsFromIndex(i), childDivisionCount);
+                _children[i].Insert(position);
+            }
+        }
+
+        private void CreateChildren2(Vector3 position)
+        {
+            _children = new Octree[8];
+            var childBoundsList = new List<Bounds>();
+            var minBoundCenterSqrMagnitude = float.MaxValue;
+            var minBounds = _bounds;
+            for (var i = 0; i < 8; i++)
+            {
+                var childBounds = GetChildBoundsFromIndex(i);
+                childBoundsList.Add(childBounds);
+                var boundCenterSqrMagnitude = (childBounds.center - position).sqrMagnitude;
+                if (boundCenterSqrMagnitude < minBoundCenterSqrMagnitude)
+                {
+                    minBoundCenterSqrMagnitude = boundCenterSqrMagnitude;
+                    minBounds = childBounds;
+                }
+            }
+
+            for (var i = 0; i < 8; i++)
+            {
+                var childDivisionCount = 0;
+                var childBounds = childBoundsList[i];
+                if (childBounds == minBounds)
+                {
+                    childDivisionCount = _divisionCount - 1;
+                }
+
+                _children[i] = new Octree(GetChildBoundsFromIndex(i), childDivisionCount);
                 _children[i].Insert(position);
             }
         }

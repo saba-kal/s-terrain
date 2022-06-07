@@ -9,6 +9,7 @@ namespace STerrain.EndlessTerrain
     public class TerrainPreview : MonoBehaviour
     {
         [SerializeField] private int _renderDistanceMultiplier = 16;
+        [SerializeField] private int _divisionCount = 4;
         [SerializeField] private TerrainSettings _terrainSettings;
 
         private Octree _octree;
@@ -24,8 +25,8 @@ namespace STerrain.EndlessTerrain
                 Mathf.RoundToInt(transform.position.z / chunkSize) * chunkSize);
             var terrainBounds = new Bounds(currentChunkPosition, Vector3.one * chunkSize * _renderDistanceMultiplier);
 
-            _octree = new Octree(terrainBounds, chunkSize);
-            _octree.Insert(transform.position);
+            _octree = new Octree(terrainBounds, _divisionCount);
+            _octree.Insert(currentChunkPosition);
 
             foreach (var bounds in _octree.GetAllLeafBounds())
             {
@@ -123,6 +124,8 @@ namespace STerrain.EndlessTerrain
         private void OnDrawGizmos()
         {
             _octree?.DrawGizmo();
+            Gizmos.color = Color.red;
+            Gizmos.DrawSphere(transform.position, 1);
         }
     }
 }
