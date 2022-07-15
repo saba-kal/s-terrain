@@ -12,12 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d9b5fe6cc1fa24449b4dd1574693fe6, type: 3}
   m_Name: DefaultTerrainSettings
   m_EditorClassIdentifier: 
-  _terrainMaterial: {fileID: 2100000, guid: 71b697825f63ac846bc9dcaec64a613b, type: 2}
+  _terrainMaterial: {fileID: 2100000, guid: 042ff64e3cb47ba479e069e8f59755d2, type: 2}
   _worldScale: 1
   _chunkSize: 16
   _noiseScale: 0.5
-  _octaves: 5
-  _persistence: 0.109
-  _lacunarity: 5
+  _octaves: 4
+  _persistence: 0.292
+  _lacunarity: 2.5
   _seed: 0
   _offset: {x: 0, y: 0, z: 0}

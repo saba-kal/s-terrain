@@ -1,5 +1,4 @@
 ﻿using STerrain.EndlessTerrain;
-using Unity.Collections;
 using UnityEngine;
 
 namespace STerrain.Noise
@@ -24,11 +23,9 @@ namespace STerrain.Noise
             var offsetZ = noiseSettings.Offset.z + sampleCenter.z;
 
             var fastNoise = new FastNoiseLite(noiseSettings.Seed);
-            fastNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
             fastNoise.SetFractalOctaves(noiseSettings.Octaves);
             fastNoise.SetFractalLacunarity(noiseSettings.Lacunarity);
             fastNoise.SetFractalGain(noiseSettings.Persistence);
-            fastNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
 
             for (var x = 0; x < mapWidth; x++)
             {
@@ -41,63 +38,29 @@ namespace STerrain.Noise
                             (y + offsetY) * scale * noiseSettings.Scale,
                             (z + offsetZ) * scale * noiseSettings.Scale);
 
-                        var noiseValue = fastNoise.GetNoise(
+                        fastNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2S);
+                        fastNoise.SetFractalType(FastNoiseLite.FractalType.Ridged);
+                        var terrainNoise = fastNoise.GetNoise(
                             noiseLocation.x,
-                            noiseLocation.y * 2,
                             noiseLocation.z);
+                        //terrainNoise = terrainNoise * 0.5f + (noiseLocation.y / 50f);
 
-                        voxelData[x, y, z] = noiseValue + (noiseLocation.y / 50f);
+                        //fastNoise.SetFrequency(0.05f);
+                        fastNoise.SetNoiseType(FastNoiseLite.NoiseType.Perlin);
+                        fastNoise.SetFractalType(FastNoiseLite.FractalType.DomainWarpProgressive);
+                        var caveNoise = fastNoise.GetNoise(
+                            noiseLocation.x,
+                            noiseLocation.y,
+                            noiseLocation.z);
+                        caveNoise = (caveNoise * caveNoise * caveNoise) + 0.03f;
+
+
+                        voxelData[x, y, z] = terrainNoise + caveNoise;
                     }
                 }
             }
 
             return voxelData;
-        }
-
-        /// <summary>
-        /// Generates a 3D noise map.
-        /// </summary>
-        public static void Generate(
-            int mapWidth,
-            int mapHeight,
-            int mapDepth,
-            int scale,
-            Vector3 sampleCenter,
-            NoiseSettings noiseSettings,
-            int nativeArrayStartIndex,
-            NativeArray<float> voxelData)
-        {
-            var offsetX = noiseSettings.Offset.x + sampleCenter.x;
-            var offsetY = noiseSettings.Offset.y + sampleCenter.y;
-            var offsetZ = noiseSettings.Offset.z + sampleCenter.z;
-
-            var fastNoise = new FastNoiseLite(noiseSettings.Seed);
-            fastNoise.SetFractalType(FastNoiseLite.FractalType.FBm);
-            fastNoise.SetFractalOctaves(noiseSettings.Octaves);
-            fastNoise.SetFractalLacunarity(noiseSettings.Lacunarity);
-            fastNoise.SetFractalGain(noiseSettings.Persistence);
-            fastNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2);
-
-            for (var x = 0; x < mapWidth; x++)
-            {
-                for (var y = 0; y < mapHeight; y++)
-                {
-                    for (var z = 0; z < mapDepth; z++)
-                    {
-                        var noiseLocation = new Vector3(
-                            (x + offsetX) * scale * noiseSettings.Scale,
-                            (y + offsetY) * scale * noiseSettings.Scale,
-                            (z + offsetZ) * scale * noiseSettings.Scale);
-
-                        var noiseValue = fastNoise.GetNoise(
-                            noiseLocation.x,
-                            noiseLocation.y * 2,
-                            noiseLocation.z);
-
-                        voxelData[nativeArrayStartIndex + (z * mapWidth * mapHeight) + (y * mapWidth) + x] = noiseValue + (noiseLocation.y / 50f);
-                    }
-                }
-            }
         }
     }
 }

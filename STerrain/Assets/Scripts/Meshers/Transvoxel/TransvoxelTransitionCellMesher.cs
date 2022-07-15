@@ -54,7 +54,7 @@ namespace STerrain.Meshers
             }
 
             var cellNormals = new Vector3[13];
-            for (int i = 0; i < 9; i++)
+            for (int i = 0; i < 13; i++)
             {
                 var p = offsetPos + GetTransitionVertexIndices(direction)[i];
                 float nx = (_voxelData[p.x + 1, p.y, p.z] - _voxelData[p.x - 1, p.y, p.z]) * 0.5f;
@@ -65,10 +65,10 @@ namespace STerrain.Meshers
                 cellNormals[i].z = nz;
                 cellNormals[i].Normalize();
             }
-            cellNormals[0x9] = cellNormals[0];
-            cellNormals[0xA] = cellNormals[2];
-            cellNormals[0xB] = cellNormals[6];
-            cellNormals[0xC] = cellNormals[8];
+            //cellNormals[0x9] = cellNormals[0];
+            //cellNormals[0xA] = cellNormals[2];
+            //cellNormals[0xB] = cellNormals[6];
+            //cellNormals[0xC] = cellNormals[8];
 
             //High bit in cell class indicates whether we should flip the triangles.
             var cellClass = TransvoxelTables.transitionCellClass[caseCode];
@@ -195,7 +195,7 @@ namespace STerrain.Meshers
         //  |   |   |  |       |
         //  0---1---2  9-------A
         private static Vector3Int[] GetTransitionVertexIndices(
-            CubeFaceDirection direction)
+            CubeFaceDirection direction, int zOffset = 0)
         {
             return new Vector3Int[13] {
                 ConvertTransitionCellCoordToVoxelCoord(0, 0, 0, direction), //0
@@ -207,10 +207,10 @@ namespace STerrain.Meshers
                 ConvertTransitionCellCoordToVoxelCoord(0, 2, 0, direction), //6
                 ConvertTransitionCellCoordToVoxelCoord(1, 2, 0, direction), //7
                 ConvertTransitionCellCoordToVoxelCoord(2, 2, 0, direction), //8
-                ConvertTransitionCellCoordToVoxelCoord(0, 0, 0, direction), //9
-                ConvertTransitionCellCoordToVoxelCoord(2, 0, 0, direction), //A
-                ConvertTransitionCellCoordToVoxelCoord(0, 2, 0, direction), //B
-                ConvertTransitionCellCoordToVoxelCoord(2, 2, 0, direction) //C
+                ConvertTransitionCellCoordToVoxelCoord(0, 0, zOffset, direction), //9
+                ConvertTransitionCellCoordToVoxelCoord(2, 0, zOffset, direction), //A
+                ConvertTransitionCellCoordToVoxelCoord(0, 2, zOffset, direction), //B
+                ConvertTransitionCellCoordToVoxelCoord(2, 2, zOffset, direction) //C
             };
         }
 

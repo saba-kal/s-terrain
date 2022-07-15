@@ -55,7 +55,7 @@ namespace STerrain.EndlessTerrain
             _meshFilter.sharedMesh = _mesh;
             _meshFilter.sharedMesh.RecalculateBounds();
 
-            if (Bounds.size.z == 16)
+            if (Bounds.size.z == 16 && _mesh.vertexCount > 3)
             {
                 _meshCollider = _meshObject.AddComponent<MeshCollider>();
                 _meshCollider.sharedMesh = _mesh;

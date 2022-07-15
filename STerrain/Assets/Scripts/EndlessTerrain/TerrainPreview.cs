@@ -10,9 +10,15 @@ namespace STerrain.EndlessTerrain
     {
         [SerializeField] private int _renderDistanceMultiplier = 16;
         [SerializeField] private int _divisionCount = 4;
+        [SerializeField] private bool _showOctree = false;
         [SerializeField] private TerrainSettings _terrainSettings;
 
         private Octree _octree;
+
+        private void Start()
+        {
+            ClearExistingChunks();
+        }
 
         public void GenerateTerrain()
         {
@@ -123,7 +129,10 @@ namespace STerrain.EndlessTerrain
 
         private void OnDrawGizmos()
         {
-            _octree?.DrawGizmo();
+            if (_showOctree)
+            {
+                _octree?.DrawGizmo();
+            }
             Gizmos.color = Color.red;
             Gizmos.DrawSphere(transform.position, 1);
         }
